@@ -9,7 +9,7 @@ from accelerate.utils import set_seed
 from accelerate.utils import DistributedDataParallelKwargs
 from safetensors.torch import load_model
 
-from mesh_to_pc import process_mesh_to_pc
+from .mesh_to_pc import process_mesh_to_pc
 from huggingface_hub import hf_hub_download
 from .MeshAnything.models.meshanything_v2 import MeshAnythingV2
 
