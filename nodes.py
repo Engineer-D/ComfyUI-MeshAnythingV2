@@ -80,9 +80,9 @@ class MeshAnything3D:
             "required": {
                 "mesh_file_path": ("STRING", {"default": '', "multiline": False}),
                 "mc_level": ("INT",{"default": 7,"min": 0,"max": 20}),
-                "mc": ("BOOLEAN",{"default": True, "label_on": "max","label_off": "min"}),
+                "mc": ("BOOLEAN",{"default": True, "label_on": "True","label_off": "False"}),
                 "no_pc_vertices": ("INT",{"default": 8192,"min": 8192,"max": 100000}),
-                "pc": ("BOOLEAN",{"default": True, "label_on": "max","label_off": "min"}),
+                "pc": ("BOOLEAN",{"default": False, "label_on": "True","label_off": "False"}),
                 "batchsize_per_gpu": ("INT",{"default": 1, "min": 1, "max": 5}),
                 "seed": ("INT",{"default": 29,"min": 0, "max": 10000000}),
                 "sampling": ("BOOLEAN",{"default": False,"label_on": "max","label_off": "min"}),
