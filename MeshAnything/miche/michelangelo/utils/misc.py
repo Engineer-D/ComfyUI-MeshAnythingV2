@@ -1,18 +1,47 @@
 # -*- coding: utf-8 -*-
 
-import importlib
+import importlib.util
+import importlib, sys
 
 import torch
 import torch.distributed as dist
 
+import os
+import folder_paths
+
+
+def list_all_packages():
+    return sorted(importlib.metadata.distributions(), key=lambda x: x.metadata["Name"])
 
 
 def get_obj_from_str(string, reload=False):
-    module, cls = string.rsplit(".", 1)
+    module_name, cls = string.rsplit(".", 1)
+
+    ROOT_PATH = os.path.join(
+        folder_paths.base_path,
+        "custom_nodes",
+        "comfyui_meshanything_v2",
+        "MeshAnything",
+        "__init__.py",
+    )
+
+    spec = importlib.util.spec_from_file_location("MeshAnything", ROOT_PATH)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["MeshAnything"] = module
+    spec.loader.exec_module(module)
+
     if reload:
-        module_imp = importlib.import_module(module)
+        module_imp = importlib.import_module(
+            f".{module_name}", "custom_nodes.comfyui_meshanything_v2"
+        )
         importlib.reload(module_imp)
-    return getattr(importlib.import_module(module, package=None), cls)
+
+    return getattr(
+        importlib.import_module(
+            f".{module_name}", "custom_nodes.comfyui_meshanything_v2"
+        ),
+        cls,
+    )
 
 
 def get_obj_from_config(config):
@@ -70,11 +99,7 @@ def all_gather_batch(tensors):
     output_tensor = []
     for tensor in tensors:
         tensor_all = [torch.ones_like(tensor) for _ in range(world_size)]
-        dist.all_gather(
-            tensor_all,
-            tensor,
-            async_op=False  # performance opt
-        )
+        dist.all_gather(tensor_all, tensor, async_op=False)  # performance opt
 
         tensor_list.append(tensor_all)
 
