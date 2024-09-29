@@ -4,14 +4,48 @@ import time
 import trimesh
 import numpy as np
 import datetime
+import folder_paths
 from accelerate import Accelerator
 from accelerate.utils import set_seed
 from accelerate.utils import DistributedDataParallelKwargs
 from safetensors.torch import load_model
-
+from os.path import isfile, join, exists, dirname
 from .mesh_to_pc import process_mesh_to_pc
 from huggingface_hub import hf_hub_download
 from .MeshAnything.models.meshanything_v2 import MeshAnythingV2
+
+SUPPORTED_3D_EXTENSIONS = (
+    ".obj",
+    ".ply",
+    ".glb",
+)
+
+def parse_save_filename(save_path, output_directory, supported_extensions, class_name):
+
+    folder_path, filename = os.path.split(save_path)
+    filename, file_extension = os.path.splitext(filename)
+    if file_extension.lower() in supported_extensions:
+        if not os.path.isabs(save_path):
+            folder_path = join(output_directory, folder_path)
+
+        os.makedirs(folder_path, exist_ok=True)
+
+        # replace time date format to current time
+        now = datetime.datetime.now()  # current date and time
+        all_date_format = ["%Y", "%m", "%d", "%H", "%M", "%S", "%f"]
+        for date_format in all_date_format:
+            if date_format in filename:
+                filename = filename.replace(date_format, now.strftime(date_format))
+
+        save_path = join(folder_path, filename) + file_extension
+        print(f"[{class_name}] Saving model to {save_path}")
+        return save_path
+    else:
+        print(
+            f"[{class_name}] File name {filename} does not end with supported file extensions: {supported_extensions}"
+        )
+
+    return None
 
 class Dataset:
     def __init__(self, input_list, mc=True, mc_level=7, pc=False, pc_out=8192):
@@ -89,11 +123,11 @@ class MeshAnything3D:
             },
         }
 
-    RETURN_TYPES = ("MESH",)
-    RETURN_NAMES = ("mesh",)
+    RETURN_TYPES = ("MESH","STRING",)
+    RETURN_NAMES = ("mesh","mesh_path",)
 
     FUNCTION = "mesh_anything"
-    CATEGORY = "ComfyMeshAnything3D/Algorithm"
+    CATEGORY = "ComfyMeshAnything/Comfy_MeshAnything_3D"
 
     def mesh_anything(self, mesh_file_path,mc_level,mc,no_pc_vertices,pc,batchsize_per_gpu,seed,sampling):
 
@@ -157,15 +191,45 @@ class MeshAnything3D:
                     face_colors = np.tile(brown_color, (num_faces, 1))
 
                     scene_mesh.visual.face_colors = face_colors
-                    result = scene_mesh
-                    scene_mesh.export(save_path)
-                    print(f"{save_path} Over!!")
         
         end_time = time.time()
         print(f"Total time: {end_time - begin_time}")
         
-        return ([result],)
+        return (scene_mesh,save_path)
+
+class Save_Mesh:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "mesh": ("MESH",),
+                "mesh_file_path": (
+                    "STRING",
+                    {"default": "Mesh_%Y-%m-%d-%M-%S-%f.glb",
+                     "multiline":False},),
+                },
+            }
+
+    OUTPUT_NODE = True
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("mesh_file_path",)
+    FUNCTION = "save_mesh"
+    CATEGORY = "ComfyMeshAnything/Comfy_MeshAnything_Save3D"
+    
+    def save_mesh(self, mesh, mesh_file_path):
+        mesh_file_path = parse_save_filename(
+            mesh_file_path,
+            folder_paths.output_directory,
+            SUPPORTED_3D_EXTENSIONS,
+            self.__class__.__name__,
+        )
+    
+        if mesh_file_path is not None:
+            mesh.export(mesh_file_path)
+    
+        return (mesh_file_path,)
 
 NODE_CLASS_MAPPINGS = {
-    "ComfyMeshAnything3D": MeshAnything3D
+    "ComfyMeshAnything3D": MeshAnything3D,
+    "ComfyMeshAnythingSave3D": Save_Mesh,
 }

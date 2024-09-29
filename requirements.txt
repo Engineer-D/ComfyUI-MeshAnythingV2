@@ -12,3 +12,9 @@ huggingface_hub
 matplotlib
 gradio
 spaces
+Pillow
+numpy
+importlib
+kiui
+xatlas
+pygltflib
